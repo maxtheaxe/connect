@@ -91,7 +91,7 @@ func testRawProcessors(name string, fn func(t *testing.T, insertProc, selectProc
 		t.Run(name, func(t *testing.T) {
 			valuesStr := `(?, ?, ?)`
 			switch driver {
-			case "postgres", "clickhouse":
+			case "postgres", "pgx", "clickhouse":
 				valuesStr = `($1, $2, $3)`
 			case "oracle":
 				valuesStr = `(:1, :2, :3)`
@@ -106,7 +106,7 @@ exec_only: true
 
 			placeholderStr := "?"
 			switch driver {
-			case "postgres", "clickhouse":
+			case "postgres", "pgx", "clickhouse":
 				placeholderStr = "$1"
 			case "oracle":
 				placeholderStr = ":1"
@@ -148,7 +148,7 @@ func testRawTransactionalProcessors(name string, fn func(t *testing.T, insertPro
 			placeholderStr := "?"
 			valuesStr := `(?, ?, ?)`
 			switch driver {
-			case "postgres", "clickhouse":
+			case "postgres", "pgx", "clickhouse":
 				valuesStr = `($1, $2, $3)`
 				placeholderStr = "$1"
 			case "oracle":
@@ -208,7 +208,7 @@ func testRawDeprecatedProcessors(name string, fn func(t *testing.T, insertProc, 
 		t.Run(name, func(t *testing.T) {
 			valuesStr := `(?, ?, ?)`
 			switch driver {
-			case "postgres", "clickhouse":
+			case "postgres", "pgx", "clickhouse":
 				valuesStr = `($1, $2, $3)`
 			case "oracle":
 				valuesStr = `(:1, :2, :3)`
@@ -222,7 +222,7 @@ args_mapping: 'root = [ this.foo, this.bar.floor(), this.baz ]'
 
 			placeholderStr := "?"
 			switch driver {
-			case "postgres", "clickhouse":
+			case "postgres", "pgx", "clickhouse":
 				placeholderStr = "$1"
 			case "oracle":
 				placeholderStr = ":1"
@@ -494,7 +494,7 @@ func testBatchInputOutputRaw(t *testing.T, driver, dsn, table string) {
 		placeholderStr := "?"
 		valuesStr := `(?, ?, ?)`
 		switch driver {
-		case "postgres", "clickhouse":
+		case "postgres", "pgx", "clickhouse":
 			valuesStr = `($1, $2, $3)`
 			placeholderStr = "$1"
 		case "oracle":
@@ -780,6 +780,7 @@ func TestIntegrationPostgres(t *testing.T) {
 	}))
 
 	testSuite(t, "postgres", dsn, createTable)
+	testSuite(t, "pgx", dsn, createTable)
 }
 
 func TestIntegrationPostgresVector(t *testing.T) {
@@ -839,58 +840,67 @@ func TestIntegrationPostgresVector(t *testing.T) {
 		return nil
 	}))
 
-	env := service.NewEnvironment()
+	for _, driver := range []string{"postgres", "pgx"} {
 
-	insertConfig, err := isql.InsertProcessorConfig().ParseYAML(fmt.Sprintf(`
-driver: postgres
+		driver := driver
+		t.Run(driver, func(t *testing.T) {
+			_, err := db.Exec(`TRUNCATE items`)
+			require.NoError(t, err)
+
+			env := service.NewEnvironment()
+
+			insertConfig, err := isql.InsertProcessorConfig().ParseYAML(fmt.Sprintf(`
+driver: %s
 dsn: %s
 table: items
 columns: ["foo", "embedding"]
 args_mapping: 'root = [ this.foo, this.embedding.vector() ]'
-`, dsn), env)
-	require.NoError(t, err)
-	insertProc, err := isql.NewSQLInsertProcessorFromConfig(insertConfig, service.MockResources())
-	require.NoError(t, err)
-	t.Cleanup(func() { insertProc.Close(t.Context()) })
+`, driver, dsn), env)
+			require.NoError(t, err)
+			insertProc, err := isql.NewSQLInsertProcessorFromConfig(insertConfig, service.MockResources())
+			require.NoError(t, err)
+			t.Cleanup(func() { insertProc.Close(t.Context()) })
 
-	insertBatch := service.MessageBatch{
-		service.NewMessage([]byte(`{"foo": "blob","embedding": [4,5,6]}`)),
-		service.NewMessage([]byte(`{"foo": "fish","embedding": [1,2,3]}`)),
-	}
+			insertBatch := service.MessageBatch{
+				service.NewMessage([]byte(`{"foo": "blob","embedding": [4,5,6]}`)),
+				service.NewMessage([]byte(`{"foo": "fish","embedding": [1,2,3]}`)),
+			}
 
-	resBatches, err := insertProc.ProcessBatch(t.Context(), insertBatch)
-	require.NoError(t, err)
-	require.Len(t, resBatches, 1)
-	require.Len(t, resBatches[0], len(insertBatch))
-	for _, v := range resBatches[0] {
-		require.NoError(t, v.GetError())
-	}
+			resBatches, err := insertProc.ProcessBatch(t.Context(), insertBatch)
+			require.NoError(t, err)
+			require.Len(t, resBatches, 1)
+			require.Len(t, resBatches[0], len(insertBatch))
+			for _, v := range resBatches[0] {
+				require.NoError(t, v.GetError())
+			}
 
-	queryConf := fmt.Sprintf(`
-driver: postgres
+			queryConf := fmt.Sprintf(`
+driver: %s
 dsn: %s
 table: items
 columns: [ "foo" ]
 suffix: ORDER BY embedding <-> '[3,1,2]' LIMIT 1
-`, dsn)
+`, driver, dsn)
 
-	selectConfig, err := isql.SelectProcessorConfig().ParseYAML(queryConf, env)
-	require.NoError(t, err)
+			selectConfig, err := isql.SelectProcessorConfig().ParseYAML(queryConf, env)
+			require.NoError(t, err)
 
-	selectProc, err := isql.NewSQLSelectProcessorFromConfig(selectConfig, service.MockResources())
-	require.NoError(t, err)
-	t.Cleanup(func() { selectProc.Close(t.Context()) })
+			selectProc, err := isql.NewSQLSelectProcessorFromConfig(selectConfig, service.MockResources())
+			require.NoError(t, err)
+			t.Cleanup(func() { selectProc.Close(t.Context()) })
 
-	queryBatch := service.MessageBatch{service.NewMessage([]byte(`{}`))}
-	resBatches, err = selectProc.ProcessBatch(t.Context(), queryBatch)
-	require.NoError(t, err)
-	require.Len(t, resBatches, 1)
-	require.Len(t, resBatches[0], 1)
-	m := resBatches[0][0]
-	require.NoError(t, m.GetError())
-	actBytes, err := m.AsBytes()
-	require.NoError(t, err)
-	assert.JSONEq(t, `[{"foo":"fish"}]`, string(actBytes))
+			queryBatch := service.MessageBatch{service.NewMessage([]byte(`{}`))}
+			resBatches, err = selectProc.ProcessBatch(t.Context(), queryBatch)
+			require.NoError(t, err)
+			require.Len(t, resBatches, 1)
+			require.Len(t, resBatches[0], 1)
+			m := resBatches[0][0]
+			require.NoError(t, m.GetError())
+			actBytes, err := m.AsBytes()
+			require.NoError(t, err)
+			assert.JSONEq(t, `[{"foo":"fish"}]`, string(actBytes))
+		})
+	}
 }
 
 func TestIntegrationMySQL(t *testing.T) {

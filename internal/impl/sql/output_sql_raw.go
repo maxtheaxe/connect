@@ -199,7 +199,7 @@ func newSQLRawOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resource
 	}
 
 	var argsConverter argsConverter
-	if driverStr == "postgres" {
+	if driverStr == "postgres" || driverStr == "pgx" {
 		argsConverter = bloblValuesToPgSQLValues
 	} else {
 		argsConverter = func(v []any) []any { return v }
