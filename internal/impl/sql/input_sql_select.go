@@ -44,7 +44,7 @@ func sqlSelectInputConfig() *service.ConfigSpec {
 			Example([]string{"*"}).
 			Example([]string{"foo", "bar", "baz"})).
 		Field(service.NewStringField("where").
-			Description("An optional where clause to add. Placeholder arguments are populated with the `args_mapping` field. Placeholders should always be question marks, and will automatically be converted to dollar syntax when the postgres or clickhouse drivers are used.").
+			Description("An optional where clause to add. Placeholder arguments are populated with the `args_mapping` field. Placeholders should always be question marks, and will automatically be converted to dollar syntax when the postgres, pgx, or clickhouse drivers are used.").
 			Example("type = ? and created_at > ?").
 			Example("user_id = ?").
 			Optional()).
@@ -159,7 +159,7 @@ func newSQLSelectInputFromConfig(conf *service.ParsedConfig, mgr *service.Resour
 
 	s.builder = squirrel.Select(columns...).From(tableStr)
 	switch s.driver {
-	case "postgres", "clickhouse":
+	case "postgres", "pgx", "clickhouse":
 		s.builder = s.builder.PlaceholderFormat(squirrel.Dollar)
 	case "oracle", "gocosmos":
 		s.builder = s.builder.PlaceholderFormat(squirrel.Colon)

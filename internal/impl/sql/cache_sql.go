@@ -148,7 +148,7 @@ func newSQLCacheFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (
 	s.deleteBuilder = squirrel.Delete(tableStr)
 
 	switch s.driver {
-	case "postgres", "clickhouse":
+	case "postgres", "pgx", "clickhouse":
 		s.selectBuilder = s.selectBuilder.PlaceholderFormat(squirrel.Dollar)
 		s.insertBuilder = s.insertBuilder.PlaceholderFormat(squirrel.Dollar)
 		s.upsertBuilder = s.upsertBuilder.PlaceholderFormat(squirrel.Dollar)
