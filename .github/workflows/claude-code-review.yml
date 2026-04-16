@@ -10,6 +10,7 @@ concurrency:
 
 jobs:
   claude-review:
+    if: github.repository == 'redpanda-data/connect' || vars.ENABLE_FORK_ACTIONS == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read

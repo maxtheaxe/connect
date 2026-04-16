@@ -5,6 +5,7 @@ on:
 
 jobs:
   build-and-publish:
+    if: github.repository == 'redpanda-data/connect' || vars.ENABLE_FORK_ACTIONS == 'true'
     runs-on: ubuntu-latest
 
     # See: https://docs.pypi.org/trusted-publishers/using-a-publisher/
@@ -30,4 +31,3 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: public/plugin/python/dist
-
