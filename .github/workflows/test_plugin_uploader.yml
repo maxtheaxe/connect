@@ -14,6 +14,7 @@ on:
 
 jobs:
   unit-test:
+    if: github.repository == 'redpanda-data/connect' || vars.ENABLE_FORK_ACTIONS == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -29,6 +30,7 @@ jobs:
         run: pytest -vv .
 
   ruff-lint:
+    if: github.repository == 'redpanda-data/connect' || vars.ENABLE_FORK_ACTIONS == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -44,6 +46,7 @@ jobs:
           ruff check --output-format=github
 
   pyright-type-check:
+    if: github.repository == 'redpanda-data/connect' || vars.ENABLE_FORK_ACTIONS == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6

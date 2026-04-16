@@ -8,6 +8,7 @@ on:
 
 jobs:
   test:
+    if: github.repository == 'redpanda-data/connect' || vars.ENABLE_FORK_ACTIONS == 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: 0
@@ -40,6 +41,7 @@ jobs:
         run: task test
 
   golangci-lint:
+    if: github.repository == 'redpanda-data/connect' || vars.ENABLE_FORK_ACTIONS == 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: 0
@@ -63,6 +65,7 @@ jobs:
           skip-save-cache: true
 
   test-push-to-cloudsmith:
+    if: github.repository == 'redpanda-data/connect' || vars.ENABLE_FORK_ACTIONS == 'true'
     runs-on: ubuntu-latest
     env:
       CLOUDSMITH_API_KEY: thisisatest

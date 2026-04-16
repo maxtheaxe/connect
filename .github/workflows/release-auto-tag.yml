@@ -7,7 +7,7 @@ on:
 
 jobs:
   tag:
-    if: github.event.pull_request.merged && startsWith(github.event.pull_request.head.ref, 'changelog/v')
+    if: (github.repository == 'redpanda-data/connect' || vars.ENABLE_FORK_ACTIONS == 'true') && github.event.pull_request.merged && startsWith(github.event.pull_request.head.ref, 'changelog/v')
     runs-on: ubuntu-latest
     permissions:
       id-token: write

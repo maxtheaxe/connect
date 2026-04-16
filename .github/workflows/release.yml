@@ -10,6 +10,7 @@ on:
 
 jobs:
   goreleaser:
+    if: github.repository == 'redpanda-data/connect' || vars.ENABLE_FORK_ACTIONS == 'true'
     runs-on: ubuntu-latest-32
     permissions:
       id-token: write
@@ -185,7 +186,7 @@ jobs:
   update-bundles:
     runs-on: ubuntu-latest
     needs: goreleaser
-    if: github.event_name == 'push' && !contains(github.ref_name, '-rc')
+    if: (github.repository == 'redpanda-data/connect' || vars.ENABLE_FORK_ACTIONS == 'true') && github.event_name == 'push' && !contains(github.ref_name, '-rc')
     permissions:
       contents: write
       pull-requests: write
@@ -231,7 +232,7 @@ jobs:
   update-downstream:
     runs-on: ubuntu-latest
     needs: goreleaser
-    if: github.event_name == 'push' && !contains(github.ref_name, '-')
+    if: (github.repository == 'redpanda-data/connect' || vars.ENABLE_FORK_ACTIONS == 'true') && github.event_name == 'push' && !contains(github.ref_name, '-')
     permissions:
       id-token: write
       contents: read
@@ -312,7 +313,7 @@ jobs:
     needs: [goreleaser, update-bundles, update-downstream]
     # always() is required because update-bundles/update-downstream may be skipped
     # (pre-release/RC), and by default a skipped dependency skips this job too.
-    if: always() && github.event_name == 'push' && !contains(github.ref_name, '-rc')
+    if: always() && (github.repository == 'redpanda-data/connect' || vars.ENABLE_FORK_ACTIONS == 'true') && github.event_name == 'push' && !contains(github.ref_name, '-rc')
     permissions:
       contents: read
     steps:
